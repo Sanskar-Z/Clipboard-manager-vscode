@@ -1,0 +1,201 @@
+{
+  "name": "clipboard-multi",
+  "displayName": "Clipboard Manager (Activity Bar)",
+  "version": "0.0.8",
+  "publisher": "your-name",
+  "description": "A modern, user-friendly Clipboard Manager with multi-slot copy, pinning, search, and history management inside VS Code.",
+  "type": "commonjs",
+  "main": "./extension.js",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-name/clipboard-multi"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "clipboardViewContainer",
+          "title": "Clipboard",
+          "icon": "images/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "clipboardViewContainer": [
+        {
+          "id": "clipboardView",
+          "name": "Clipboard History"
+        }
+      ]
+    },
+    "commands": [
+      { 
+        "command": "clipboard.refresh",
+        "title": "🔄 Refresh Clipboard History",
+        "icon": "$(refresh)"
+      },
+      { 
+        "command": "clipboard.copy",
+        "title": "📋 Copy to Slot",
+        "icon": "$(copy)"
+      },
+      { 
+        "command": "clipboard.paste",
+        "title": "📥 Paste from Slot",
+        "icon": "$(paste)"
+      },
+      { 
+        "command": "clipboard.pasteItem",
+        "title": "📥 Paste Item",
+        "icon": "$(paste)"
+      },
+      { 
+        "command": "clipboard.copyAndSave",
+        "title": "💾 Copy and Save to History",
+        "icon": "$(add)"
+      },
+      {
+        "command": "clipboard.copyToClipboard",
+        "title": "📋 Copy to System Clipboard",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "clipboard.exitSearch",
+        "title": "↩️ Exit Search View",
+        "icon": "$(arrow-left)"
+      },
+      { 
+        "command": "clipboard.pin",
+        "title": "📌 Pin Item",
+        "icon": "$(pin)"
+      },
+      { 
+        "command": "clipboard.unpin",
+        "title": "📍 Unpin Item",
+        "icon": "$(pinned)"
+      },
+      { 
+        "command": "clipboard.delete",
+        "title": "🗑️ Delete Item",
+        "icon": "$(trash)"
+      },
+      { 
+        "command": "clipboard.search",
+        "title": "🔍 Search Clipboard History",
+        "icon": "$(search)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "clipboard.refresh",
+          "when": "view == clipboardView",
+          "group": "navigation@1",
+          "icon": "$(refresh)"
+        },
+        {
+          "command": "clipboard.search",
+          "when": "view == clipboardView",
+          "group": "navigation@2",
+          "icon": "$(search)"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "clipboard.copyAndSave",
+          "when": "view == clipboardView && (viewItem == pinnedItem || viewItem == historyItem)",
+          "group": "inline@1",
+          "title": "📋 Save Item to History"
+        },
+        {
+          "command": "clipboard.copyToClipboard",
+          "when": "view == clipboardView && (viewItem == pinnedItem || viewItem == historyItem)",
+          "group": "inline@2",
+          "title": "📋 Copy to Clipboard"
+        },
+        {
+          "command": "clipboard.pin",
+          "when": "view == clipboardView && viewItem == historyItem",
+          "group": "inline@2",
+          "title": "📌 Pin Item"
+        },
+        {
+          "command": "clipboard.unpin",
+          "when": "view == clipboardView && viewItem == pinnedItem",
+          "group": "inline@3",
+          "title": "📍 Unpin Item"
+        },
+        {
+          "command": "clipboard.delete",
+          "when": "view == clipboardView && (viewItem == pinnedItem || viewItem == historyItem)",
+          "group": "inline@4",
+          "title": "🗑️ Delete Item"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "clipboard.copyAndSave",
+          "group": "9_cutcopypaste"
+        }
+      ]
+    },
+    "keybindings": [
+      { "key": "ctrl+0", "command": "clipboard.copy", "args": { "slot": 0 }, "when": "editorTextFocus" },
+      { "key": "ctrl+1", "command": "clipboard.copy", "args": { "slot": 1 }, "when": "editorTextFocus" },
+      { "key": "ctrl+2", "command": "clipboard.copy", "args": { "slot": 2 }, "when": "editorTextFocus" },
+      { "key": "ctrl+3", "command": "clipboard.copy", "args": { "slot": 3 }, "when": "editorTextFocus" },
+      { "key": "ctrl+4", "command": "clipboard.copy", "args": { "slot": 4 }, "when": "editorTextFocus" },
+      { "key": "ctrl+5", "command": "clipboard.copy", "args": { "slot": 5 }, "when": "editorTextFocus" },
+      { "key": "ctrl+6", "command": "clipboard.copy", "args": { "slot": 6 }, "when": "editorTextFocus" },
+      { "key": "ctrl+7", "command": "clipboard.copy", "args": { "slot": 7 }, "when": "editorTextFocus" },
+      { "key": "ctrl+8", "command": "clipboard.copy", "args": { "slot": 8 }, "when": "editorTextFocus" },
+      { "key": "ctrl+9", "command": "clipboard.copy", "args": { "slot": 9 }, "when": "editorTextFocus" },
+
+      { "key": "alt+0", "command": "clipboard.paste", "args": { "slot": 0 }, "when": "editorTextFocus" },
+      { "key": "alt+1", "command": "clipboard.paste", "args": { "slot": 1 }, "when": "editorTextFocus" },
+      { "key": "alt+2", "command": "clipboard.paste", "args": { "slot": 2 }, "when": "editorTextFocus" },
+      { "key": "alt+3", "command": "clipboard.paste", "args": { "slot": 3 }, "when": "editorTextFocus" },
+      { "key": "alt+4", "command": "clipboard.paste", "args": { "slot": 4 }, "when": "editorTextFocus" },
+      { "key": "alt+5", "command": "clipboard.paste", "args": { "slot": 5 }, "when": "editorTextFocus" },
+      { "key": "alt+6", "command": "clipboard.paste", "args": { "slot": 6 }, "when": "editorTextFocus" },
+      { "key": "alt+7", "command": "clipboard.paste", "args": { "slot": 7 }, "when": "editorTextFocus" },
+      { "key": "alt+8", "command": "clipboard.paste", "args": { "slot": 8 }, "when": "editorTextFocus" },
+      { "key": "alt+9", "command": "clipboard.paste", "args": { "slot": 9 }, "when": "editorTextFocus" },
+      { "key": "ctrl+c", "command": "editor.action.clipboardCopyAction", "when": "editorTextFocus" },
+      { "key": "alt+5", "command": "clipboard.paste", "args": { "slot": 5 }, "when": "editorTextFocus" },
+      { "key": "alt+6", "command": "clipboard.paste", "args": { "slot": 6 }, "when": "editorTextFocus" },
+      { "key": "alt+7", "command": "clipboard.paste", "args": { "slot": 7 }, "when": "editorTextFocus" },
+      { "key": "alt+8", "command": "clipboard.paste", "args": { "slot": 8 }, "when": "editorTextFocus" },
+      { "key": "alt+9", "command": "clipboard.paste", "args": { "slot": 9 }, "when": "editorTextFocus" },
+
+      { "key": "ctrl+shift+c", "command": "clipboard.copyAndSave", "when": "editorTextFocus" },
+      {
+        "key": "ctrl+c",
+        "command": "clipboard.copyToClipboard",
+        "when": "view == clipboardView && viewItem =~ /(historyItem|pinnedItem)/"
+      },
+      {
+        "key": "delete",
+        "command": "clipboard.delete",
+        "when": "view == clipboardView && viewItem =~ /(historyItem|pinnedItem)/"
+      }
+    ],
+    "configuration": {
+      "title": "Clipboard Manager",
+      "properties": {
+        "clipboardManager.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional absolute path to the compiled C++ CLI binary. If empty, the extension will look for the binary in the workspace root."
+        }
+      }
+    }
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,63 @@
+node_modules
+.vscode-test/
+*.vsix
+.env
+data
+# Node / JS
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+package-lock.json
+
+# VS Code
+.vscode/
+.vscode-test/
+
+# Build artifacts (C/C++)
+build/
+build/*
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+
+# Visual Studio
+.vs/
+*.vcxproj*
+*.sln
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Data, history and temporary files
+data/
+data/**
+history.txt
+history.json
+test_history.json
+tmp_*.txt
+tmp/
+*.log
+
+# Distribution
+dist/
+*.zip
+*.tar.gz
+
+# Other
+coverage/
+*.tmp

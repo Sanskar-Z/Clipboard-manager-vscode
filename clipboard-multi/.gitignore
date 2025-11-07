@@ -1,0 +1,6 @@
+node_modules
+.vscode-test/
+*.vsix
+.env
+data/history.txt
+data/slots
