@@ -6,7 +6,7 @@
   "description": "A modern, user-friendly Clipboard Manager with multi-slot copy, pinning, search, and history management inside VS Code.",
   "type": "commonjs",
   "main": "./extension.js",
-  "icon": "images/icon.png",
+  "icon": "images/icon.svg",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -39,6 +39,16 @@
         "command": "clipboard.refresh",
         "title": "🔄 Refresh Clipboard History",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "clipboard.undoDelete",
+        "title": "↩️ Undo Last Delete",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "clipboard.clearAll",
+        "title": "🧹 Clear All History",
+        "icon": "$(trash)"
       },
       { 
         "command": "clipboard.copy",
@@ -98,6 +108,18 @@
           "when": "view == clipboardView",
           "group": "navigation@1",
           "icon": "$(refresh)"
+        },
+        {
+          "command": "clipboard.undoDelete",
+          "when": "view == clipboardView",
+          "group": "navigation@2",
+          "icon": "$(discard)"
+        },
+        {
+          "command": "clipboard.clearAll",
+          "when": "view == clipboardView",
+          "group": "navigation@3",
+          "icon": "$(trash)"
         },
         {
           "command": "clipboard.search",

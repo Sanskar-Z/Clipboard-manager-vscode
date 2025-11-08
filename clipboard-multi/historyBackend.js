@@ -12,8 +12,15 @@ let historyData = {
   history: [],
   pinned: [],
   // optional flattened list with pinned markers (produced by C++ export)
-  all: []
+  all: [],
+  // store last deleted item for undo
+  lastDeleted: null
 };
+
+// In-memory guard to avoid saving the same clipboard text multiple times
+// when a single Ctrl+C triggers multiple handlers (not persisted to disk)
+let _lastAddedText = null;
+let _lastAddedAt = 0;
 
 // --------------------------------------------------------------------------
 // 🏁 Initialization
@@ -31,6 +38,8 @@ function init(filePath, cliPath) {
         } catch (e) {}
       }
 
+
+
       if (!fs.existsSync(HISTORY_FILE)) {
         saveFile(); // Create a fresh file
       }
@@ -40,7 +49,7 @@ function init(filePath, cliPath) {
         historyData = JSON.parse(data);
       } catch {
         console.warn('[Clipboard Manager] ⚠️ Corrupt history file. Reinitializing...');
-        historyData = { slots: {}, history: [], pinned: [], all: [] };
+        historyData = { slots: {}, history: [], pinned: [], all: [], lastDeleted: null };
         saveFile();
       }
     }
@@ -58,6 +67,21 @@ function saveFile() {
   } catch (err) {
     console.error('[Clipboard Manager] ❌ Failed to save history file:', err.message);
   }
+}
+
+// Rebuild the flattened `all` array from pinned + history for JS-only mode
+function rebuildAll() {
+  const all = [];
+  let idx = 0;
+  // pinned first (preserve order)
+  for (const p of historyData.pinned || []) {
+    all.push({ index: idx++, content: p });
+  }
+  // then history
+  for (const h of historyData.history || []) {
+    all.push({ index: idx++, content: h });
+  }
+  historyData.all = all;
 }
 
 function runCliSync(args) {
@@ -138,6 +162,16 @@ function getFromSlot(slot) {
 
 async function addToHistory(text) {
   if (!text || text.trim() === '') return false;
+  // Normalize newlines to \n so saved entries use a consistent linebreak format
+  try { text = String(text).replace(/\r\n/g, '\n'); } catch (e) {}
+  // Deduplicate rapid duplicate adds (e.g., copy handler + poller race)
+  try {
+    const now = Date.now();
+    if (_lastAddedText === text && (now - _lastAddedAt) < 2000) {
+      // ignore duplicate adds within 2 seconds
+      return false;
+    }
+  } catch (e) {}
   if (CLI_PATH) {
     // write text to a temp file and call CLI to avoid shell quoting/length issues
     const os = require('os');
@@ -166,6 +200,12 @@ async function addToHistory(text) {
   // Limit to 100 entries
   if (historyData.history.length > 100) historyData.history.pop();
 
+  // record last added and persist
+  _lastAddedText = text;
+  _lastAddedAt = Date.now();
+
+  // rebuild flattened 'all' and persist
+  rebuildAll();
   saveFile();
   return true;
 }
@@ -202,6 +242,7 @@ async function pinItem(text) {
   if (historyData.pinned.includes(text)) return false;
   historyData.pinned.push(text);
   historyData.history = historyData.history.filter(item => item !== text);
+  rebuildAll();
   saveFile();
 
   console.log(`[Clipboard Manager] 📌 Pinned "${text}"`);
@@ -237,6 +278,7 @@ async function unpinItem(text) {
   if (!historyData.pinned.includes(text)) return false;
 
   historyData.pinned = historyData.pinned.filter(item => item !== text);
+  rebuildAll();
   saveFile();
 
   console.log(`[Clipboard Manager] 📤 Unpinned "${text}"`);
@@ -260,6 +302,7 @@ async function deleteItem(text) {
         return false;
       }
       const idx = item.index;  // Use the index from C++ backend
+      historyData.lastDeleted = text;
       await runCli(['delete', String(idx)]);
       await reload();
       console.log(`[Clipboard Manager] 🗑️ Deleted "${text}" successfully.`);
@@ -275,7 +318,9 @@ async function deleteItem(text) {
 
   historyData.history = historyData.history.filter(item => item !== text);
   historyData.pinned = historyData.pinned.filter(item => item !== text);
+  historyData.lastDeleted = text;
 
+  rebuildAll();
   saveFile();
 
   const changed = beforeHistory !== historyData.history.length || beforePinned !== historyData.pinned.length;
@@ -285,6 +330,79 @@ async function deleteItem(text) {
     return true;
   } else {
     console.warn(`[Clipboard Manager] ⚠️ Item not found for deletion: "${text}".`);
+    return false;
+  }
+}
+
+async function undoDelete() {
+  if (!historyData.lastDeleted) {
+    console.warn('[Clipboard Manager] ⚠️ No item to undo delete.');
+    return false;
+  }
+
+  const text = historyData.lastDeleted;
+  historyData.lastDeleted = null;
+
+  if (CLI_PATH) {
+    try {
+      // write text to a temp file and call CLI to avoid shell quoting/length issues
+      const os = require('os');
+      const tmpDir = os.tmpdir();
+      const tmpPath = path.join(tmpDir, `cm_undo_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+      try {
+        fs.writeFileSync(tmpPath, text, 'utf8');
+        await runCli(['add-from-file', tmpPath]);
+        await reload();
+        console.log(`[Clipboard Manager] ↩️ Restored "${text}" successfully.`);
+        return true;
+      } finally {
+        try { fs.unlinkSync(tmpPath); } catch (e) {}
+      }
+    } catch (e) {
+      console.error('[Clipboard Manager] ❌ Failed to undo delete:', e.message);
+      return false;
+    }
+  }
+
+  historyData.history.unshift(text);
+  saveFile();
+  console.log(`[Clipboard Manager] ↩️ Restored "${text}" successfully.`);
+  return true;
+}
+
+// --------------------------------------------------------------------------
+// 🧹 Clear all history
+// --------------------------------------------------------------------------
+async function clearHistory() {
+  try {
+    if (CLI_PATH) {
+      await reload();
+      const all = historyData.all || [];
+      const indices = all.map(i => i && i.index).filter(i => typeof i === 'number').sort((a, b) => b - a);
+      for (const idx of indices) {
+        try {
+          await runCli(['delete', String(idx)]);
+        } catch (e) {
+          console.warn('[Clipboard Manager] Failed to delete index', idx, e && e.message ? e.message : e);
+        }
+      }
+      await reload();
+      historyData.lastDeleted = null;
+      saveFile();
+      console.log('[Clipboard Manager] 🧹 Cleared all history via CLI.');
+      return true;
+    }
+
+    historyData.history = [];
+    historyData.pinned = [];
+    historyData.all = [];
+    historyData.lastDeleted = null;
+  rebuildAll();
+  saveFile();
+    console.log('[Clipboard Manager] 🧹 Cleared all history (JS mode).');
+    return true;
+  } catch (err) {
+    console.error('[Clipboard Manager] ❌ Failed to clear history:', err && err.message ? err.message : err);
     return false;
   }
 }
@@ -315,10 +433,20 @@ function reload() {
     if (!fs.existsSync(HISTORY_FILE)) return false;
     const data = fs.readFileSync(HISTORY_FILE, 'utf8');
     const parsed = JSON.parse(data);
-    historyData.slots = parsed.slots || {};
-    historyData.history = parsed.history || [];
-    historyData.pinned = parsed.pinned || [];
-    historyData.all = parsed.all || [];
+    // Normalize newline formats when loading so internal representation uses \n
+    historyData.slots = {};
+    if (parsed.slots) {
+      for (const k of Object.keys(parsed.slots)) {
+        try {
+          historyData.slots[k] = String(parsed.slots[k]).replace(/\r\n/g, '\n');
+        } catch (e) {
+          historyData.slots[k] = parsed.slots[k];
+        }
+      }
+    }
+    historyData.history = (parsed.history || []).map(s => String(s).replace(/\r\n/g, '\n'));
+    historyData.pinned = (parsed.pinned || []).map(s => String(s).replace(/\r\n/g, '\n'));
+    historyData.all = (parsed.all || []).map(a => ({ index: a && a.index, content: String((a && a.content) || '').replace(/\r\n/g, '\n') }));
     return true;
   } catch (err) {
     console.error('[Clipboard Manager] ❌ Failed to reload history file:', err.message);
@@ -340,5 +468,8 @@ module.exports = {
   search,
   getAll,
   reload,
-  hasCli
+  hasCli,
+  undoDelete
+  ,
+  clearHistory
 };

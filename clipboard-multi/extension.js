@@ -81,6 +81,34 @@ function activate(context) {
 
   register(context, 'clipboard.refresh', () => dataProvider.refresh());
 
+  // ↩️ Undo last delete
+  register(context, 'clipboard.undoDelete', async () => {
+    await runWithProgress('Undoing last delete', async () => {
+      const success = await historyBackend.undoDelete();
+      if (success) dataProvider.refresh();
+    });
+  });
+
+  // 🧹 Clear all history (with confirmation)
+  register(context, 'clipboard.clearAll', async () => {
+    const choice = await vscode.window.showWarningMessage(
+      'Clear all clipboard history? This will remove pinned items as well.',
+      { modal: true },
+      'Clear'
+    );
+    if (choice !== 'Clear') return;
+
+    await runWithProgress('Clearing clipboard history', async () => {
+      const ok = await historyBackend.clearHistory();
+      if (ok) {
+        info('Cleared clipboard history');
+        dataProvider.refresh();
+      } else {
+        warn('Failed to clear clipboard history');
+      }
+    });
+  });
+
   // 📋 Copy selected text to slot
   register(context, 'clipboard.copy', async (args) => {
     const editor = vscode.window.activeTextEditor;
@@ -210,37 +238,50 @@ function activate(context) {
   // ⚙️ Clipboard Auto-Capture
   // --------------------------------------------------------------------------
   
+  // --------------------------------------------------------------------------
+  // ⚙️ Clipboard Auto-Capture
+  // 1) Capture on Ctrl+C (override copy command)
+  // 2) Poll for external clipboard changes every 2s
+  // We keep a shared `lastClipboard` variable so both mechanisms don't double-add
+  let lastClipboard = '';
+
+  // Initialize lastClipboard from current clipboard value (non-blocking)
+  vscode.env.clipboard.readText().then((initial) => {
+    try { lastClipboard = (initial || '').replace(/\r\n/g, '\n'); } catch (e) { lastClipboard = initial || ''; }
+  }, () => { lastClipboard = ''; });
+
   // 1. Capture on Ctrl+C
   const disposable = vscode.commands.registerCommand('editor.action.clipboardCopyAction', async () => {
-    // First run the default copy command
+    // First run the default copy command (use the syntax-highlighting variant to preserve behavior)
     await vscode.commands.executeCommand('editor.action.clipboardCopyWithSyntaxHighlightingAction');
-    
+
     // Then grab the copied text and add to history
-    const text = await vscode.env.clipboard.readText();
+    const raw = await vscode.env.clipboard.readText();
+    const text = raw ? String(raw).replace(/\r\n/g, '\n') : raw;
     if (text && text.trim()) {
       const ok = await historyBackend.addToHistory(text);
-      if (ok) dataProvider.refresh();
+      if (ok) {
+        lastClipboard = text; // prevent the poller from adding the same item shortly after
+        dataProvider.refresh();
+      }
     }
   });
   context.subscriptions.push(disposable);
 
   // 2. Poll for external clipboard changes every 2s
-  vscode.env.clipboard.readText().then((initialText) => {
-    let lastClipboard = initialText || '';
-
-    setInterval(async () => {
-      try {
-        const current = await vscode.env.clipboard.readText();
-        if (current && current.trim() && current !== lastClipboard) {
-          lastClipboard = current;
-          const ok = await historyBackend.addToHistory(current);
-          if (ok) dataProvider.refresh();
-        }
-      } catch (err) {
-        console.error('[Clipboard Manager] Clipboard poll error:', err.message);
+  setInterval(async () => {
+    try {
+      const rawCurrent = await vscode.env.clipboard.readText();
+      const current = rawCurrent ? String(rawCurrent).replace(/\r\n/g, '\n') : rawCurrent;
+      if (current && current.trim() && current !== lastClipboard) {
+        lastClipboard = current;
+        const ok = await historyBackend.addToHistory(current);
+        if (ok) dataProvider.refresh();
       }
-    }, 2000);
-  });
+    } catch (err) {
+      console.error('[Clipboard Manager] Clipboard poll error:', err.message || err);
+    }
+  }, 2000);
 
   console.log('✅ Clipboard Manager activated successfully.');
 }
