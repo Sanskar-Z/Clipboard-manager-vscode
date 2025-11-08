@@ -6,6 +6,36 @@ Key pieces:
 - `clipboard-multi/` — the VS Code extension (JavaScript) and webview UI.
 - `src/` and `include/` — the C++ backend source and headers used to build `clipboard_manager.exe`.
 
+## 🚀 Features
+
+- 📝 **Rich Clipboard History**
+  - Maintains history of all copied text
+  - Preserves formatting and structure
+  - Search through past clipboard entries
+  - Delete unwanted entries
+
+- 📌 **Pin Important Items**
+  - Pin frequently used snippets
+  - Quick access to pinned items
+  - Persistent across VS Code sessions
+
+- ⚡ **Quick Access**
+  - Quick-copy with Ctrl+0–9 shortcuts
+  - Quick-paste with Alt+0–9 shortcuts
+  - Instantly access last 10 items
+
+- 🔄 **Smart Management**
+  - Automatic duplicate prevention
+  - Undo delete operations
+  - Clean history management
+  - Custom slot storage
+
+- 🎯 **Developer Friendly**
+  - Native Windows integration
+  - Low memory footprint
+  - Fast C++ backend
+  - Extensible architecture
+
 ---
 
 ## ⚙️ Build the C++ Backend (Windows)
@@ -29,11 +59,14 @@ Running the executable:
 .\clipboard_manager.exe
 ```
 
-If you prefer CMake, generate a build directory and build normally (CMake + Ninja/MSBuild):
+If you prefer CMake (requires CMake 3.10+ and Ninja or MSBuild):
 
 ```bash
-cmake -S . -B build -G "Ninja"
+# Remove existing build directory if needed
+cmake -S . -B build -G "Ninja"  # Use -G "Visual Studio 17 2022" for MSBuild
 cmake --build build
+
+# The executable will be created as build/clipboard_manager.exe
 ```
 
 ---
@@ -44,7 +77,22 @@ Open the `clipboard-multi/` folder in VS Code and press F5 to launch the extensi
 
 `Clipboard Manager: Show History`
 
-The extension lets you view/pin/search clipboard entries, quick-copy (Ctrl+0–9) and quick-paste (Alt+0–9), delete entries, and undo.
+The extension provides the following features:
+
+### Commands
+- `Clipboard Manager: Show History` - Open the clipboard history panel
+- `Clipboard Manager: Clear History` - Clear all unpinned history items
+- `Clipboard Manager: Pin Item` - Pin currently selected item
+- `Clipboard Manager: Unpin Item` - Unpin currently selected item
+- `Clipboard Manager: Delete Item` - Delete selected item from history
+- `Clipboard Manager: Undo Last Delete` - Restore last deleted item
+
+### Keyboard Shortcuts
+- `Ctrl+0` through `Ctrl+9` - Quick-copy the nth item from history
+- `Alt+0` through `Alt+9` - Quick-paste the nth item from history
+- `Ctrl+Alt+V` - Show clipboard history panel
+- `Delete` - Delete selected item (when history panel is focused)
+- `Ctrl+Z` - Undo last delete (when history panel is focused)
 
 The extension UI reads/writes the `data/` files under `clipboard-multi/data/` while developing. Those files are ignored by `.gitignore`.
 

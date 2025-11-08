@@ -321,8 +321,21 @@ function getItemText(item) {
   if (!item) return '';
   // If it's a direct string, return it
   if (typeof item === 'string') return item;
-  // If it's a tree item, prefer description over label
-  // since label includes index and emoji
+  // If the TreeItem carries a command argument (our provider sets this), prefer that
+  // This ensures context-menu actions receive the full original text instead of a truncated description.
+  try {
+    if (item.command && Array.isArray(item.command.arguments) && item.command.arguments.length) {
+      const arg = item.command.arguments[0];
+      if (typeof arg === 'string') return arg;
+      if (arg && typeof arg === 'object') {
+        // if argument is a TreeItem-like object, try to extract its description or label
+        if (typeof arg.description === 'string' && arg.description.trim()) return arg.description;
+        if (typeof arg.label === 'string' && arg.label.trim()) return String(arg.label).replace(/^\d+\.\s*[^\w\s]?\s*/, '').trim();
+      }
+    }
+  } catch (e) {}
+
+  // If it's a tree item, prefer description over label since label includes index and emoji
   if (item.description) return item.description;
   if (item.label) {
     // Remove index number and emoji from label

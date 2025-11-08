@@ -11,4 +11,4 @@ add_executable(clipboard_manager
     src/advanced_features/AdvancedFeatures.cpp
 )
 
-target_include_directories(clipboard_manager PRIVATE src)
+target_include_directories(clipboard_manager PRIVATE src include)
