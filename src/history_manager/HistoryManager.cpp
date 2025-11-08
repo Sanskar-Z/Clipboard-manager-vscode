@@ -36,7 +36,28 @@ std::vector<HistoryItem> HistoryManager::readHistory() {
     if (!in.is_open()) return out;
     std::string line;
     while (std::getline(in, line)) {
-        // Format: TIMESTAMP ||| CONTENT (safe split)
+        if (line.empty()) continue;
+        // If line looks like JSON (NDJSON), parse it
+        std::string trimmed = line;
+        // trim leading spaces
+        size_t pos = trimmed.find_first_not_of(" \t\r\n");
+        if (pos != std::string::npos) trimmed = trimmed.substr(pos);
+
+        if (!trimmed.empty() && trimmed.front() == '{') {
+            try {
+                auto j = nlohmann::json::parse(trimmed);
+                HistoryItem it;
+                it.timestamp = j.value("timestamp", "");
+                it.content = j.value("content", "");
+                it.pinned = j.value("pinned", false);
+                out.push_back(it);
+                continue;
+            } catch (...) {
+                // fall-through to legacy parsing
+            }
+        }
+
+        // Legacy format fallback: TIMESTAMP ||| CONTENT
         auto sep = line.find(" ||| ");
         if (sep != std::string::npos) {
             HistoryItem it;
@@ -60,12 +81,22 @@ std::vector<HistoryItem> HistoryManager::readHistory() {
 }
 
 bool HistoryManager::writeHistory(const std::vector<HistoryItem>& items) {
-    std::ofstream out(m_historyPath, std::ios::trunc);
+    // Write each item as one JSON object per line (NDJSON). This preserves multiline content safely.
+    std::ofstream out(m_historyPath, std::ios::trunc | std::ios::binary);
     if (!out.is_open()) return false;
     for (const auto &it : items) {
-        std::string content = it.content;
-        if (it.pinned) content = std::string("[PINNED]") + content;
-        out << it.timestamp << " ||| " << content << "\n";
+        try {
+            nlohmann::json j;
+            j["timestamp"] = it.timestamp;
+            j["pinned"] = it.pinned;
+            j["content"] = it.content;
+            out << j.dump() << "\n";
+        } catch (...) {
+            // As a last resort, write a simple escaped line
+            std::string content = it.content;
+            if (it.pinned) content = std::string("[PINNED]") + content;
+            out << it.timestamp << " ||| " << content << "\n";
+        }
     }
     bool ok = true;
     // After writing the canonical text history, also write a JSON snapshot so the JS extension can consume it
